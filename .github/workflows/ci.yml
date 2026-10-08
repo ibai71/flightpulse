@@ -1,0 +1,46 @@
+name: FlightPulse CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  python-and-dbt:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: flightpulse
+          POSTGRES_USER: flightpulse
+          POSTGRES_PASSWORD: flightpulse_local
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U flightpulse -d flightpulse"
+          --health-interval 5s
+          --health-timeout 3s
+          --health-retries 20
+    env:
+      POSTGRES_DB: flightpulse
+      POSTGRES_USER: flightpulse
+      POSTGRES_PASSWORD: flightpulse_local
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: 5432
+      POSTGRES_JDBC_URL: jdbc:postgresql://localhost:5432/flightpulse
+      KAFKA_BOOTSTRAP_SERVERS: localhost:9092
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: python -m pip install -e '.[dev]'
+      - run: pytest
+      - run: python scripts/seed_ci.py
+      - run: dbt run --project-dir dbt --profiles-dir dbt
+      - run: dbt test --project-dir dbt --profiles-dir dbt

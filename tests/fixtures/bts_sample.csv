@@ -1,0 +1,5 @@
+FlightDate,DOT_ID_Reporting_Airline,Reporting_Airline,Flight_Number_Reporting_Airline,OriginAirportID,Origin,DestAirportID,Dest,CRSDepTime,DepDelayMinutes,ArrDelayMinutes,ArrDel15,Cancelled,Diverted,Distance,AirTime,CarrierDelay,WeatherDelay,NASDelay,SecurityDelay,LateAircraftDelay
+2026-05-01,19805,AA,100,12478,JFK,12892,LAX,800,-5,-10,0,0,0,2475,330,,,,,
+2026-05-01,19805,AA,100,12478,JFK,12892,LAX,800,-5,-10,0,0,0,2475,330,,,,,
+2026-05-01,19805,AA,101,12892,LAX,12478,JFK,900,20,25,1,0,0,2475,340,10,0,15,0,0
+2026-05-01,19805,AA,102,12892,L@X,12478,JFK,1000,, , ,1,0,2475,,,,,,

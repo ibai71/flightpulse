@@ -1,0 +1,34 @@
+[build-system]
+requires = ["setuptools>=69", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "flightpulse"
+version = "0.1.0"
+description = "Local aviation data engineering platform with batch and streaming pipelines"
+requires-python = ">=3.10"
+dependencies = [
+  "pyspark==4.1.0",
+  "requests>=2.32,<3",
+  "kafka-python>=2.2,<3",
+  "python-dotenv>=1.0,<2",
+  "psycopg[binary]>=3.2,<4",
+  "dbt-core>=1.9,<2",
+  "dbt-postgres>=1.9,<2",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3,<9", "pytest-cov>=6,<7"]
+
+[project.scripts]
+flightpulse = "flightpulse.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.coverage.run]
+source = ["flightpulse"]

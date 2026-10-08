@@ -1,0 +1,71 @@
+version: 2
+
+models:
+  - name: stg_bts_flights
+    columns:
+      - name: flight_id
+        tests: [not_null, unique]
+      - name: flight_date
+        tests: [not_null]
+      - name: airline_id
+        tests: [not_null]
+      - name: arrival_delayed_15
+        tests:
+          - accepted_values:
+              values: [0, 1]
+  - name: stg_adsb_observations
+    columns:
+      - name: flight_id
+        tests: [not_null]
+      - name: event_ts
+        tests: [not_null]
+  - name: fact_flights
+    columns:
+      - name: flight_id
+        tests: [not_null, unique]
+      - name: flight_date
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_key
+      - name: airline_id
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_airline')
+              field: airline_id
+      - name: origin_airport_id
+        tests:
+          - relationships:
+              to: ref('dim_airport')
+              field: airport_id
+      - name: destination_airport_id
+        tests:
+          - relationships:
+              to: ref('dim_airport')
+              field: airport_id
+  - name: dim_date
+    columns:
+      - name: date_key
+        tests: [not_null, unique]
+  - name: dim_airline
+    columns:
+      - name: airline_id
+        tests: [not_null, unique]
+  - name: dim_airport
+    columns:
+      - name: airport_id
+        tests: [not_null, unique]
+      - name: airport_code
+        tests: [not_null]
+  - name: fact_adsb_observations
+    columns:
+      - name: flight_id
+        tests: [not_null]
+      - name: event_ts
+        tests: [not_null]
+      - name: longitude
+        tests: [not_null]
+      - name: latitude
+        tests: [not_null]

@@ -1,0 +1,21 @@
+{
+  "flight_id": "abc123:2026-04-30T12:00:00Z",
+  "icao24": "abc123",
+  "callsign": "TEST123",
+  "icao_type": "B738",
+  "operator": "Example Air",
+  "start_airport_ident": "KJFK",
+  "end_airport_ident": "KLAX",
+  "path": {
+    "type": "MultiLineString",
+    "coordinates": [
+      [[-73.78, 40.64, 1200], [-73.5, 40.7, 6000]]
+    ]
+  },
+  "timestamps": [[1777550400, 1777550460]],
+  "path_tracks": [[[1777550400, 90], [1777550460, 92]]],
+  "path_gs": [[[1777550400, 180], [1777550460, 220]]],
+  "path_vr": [[[1777550400, 1000], [1777550460, 800]]],
+  "path_ias": [[[1777550400, 150]]],
+  "path_agl_ft": [[[1777550400, 900], [1777550460, 5600]]]
+}

@@ -1,0 +1,10 @@
+version: 2
+
+sources:
+  - name: ingestion
+    schema: staging
+    tables:
+      - name: bts_flights
+        description: Typed flight-level records loaded by the PySpark batch pipeline.
+      - name: adsb_observations
+        description: Deduplicated timestamped path observations loaded from streaming Parquet.
