@@ -1,9 +1,13 @@
 from __future__ import annotations
 
 import os
+from typing import TYPE_CHECKING
 
 import psycopg
-from pyspark.sql import DataFrame
+from psycopg import sql
+
+if TYPE_CHECKING:
+    from pyspark.sql import DataFrame
 
 from flightpulse.config import postgres_connection
 
@@ -50,13 +54,28 @@ def ensure_source_tables() -> None:
             """)
 
 
-def write_dataframe(df: DataFrame, table: str, mode: str = "overwrite") -> None:
+def write_dataframe(df: "DataFrame", table: str, mode: str = "overwrite") -> None:
     schema, table_name = table.split(".", 1)
     ensure_schema(schema)
     config = postgres_connection()
+    write_mode = mode
+    if mode == "overwrite":
+        with psycopg.connect(
+            host=config["host"], port=config["port"], dbname=config["dbname"],
+            user=config["user"], password=config["password"],
+        ) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute("SELECT to_regclass(%s)", (f"{schema}.{table_name}",))
+                if cursor.fetchone()[0] is not None:
+                    cursor.execute(
+                        sql.SQL("TRUNCATE TABLE {}.{}").format(
+                            sql.Identifier(schema), sql.Identifier(table_name)
+                        )
+                    )
+                    write_mode = "append"
     properties = {
         "user": config["user"],
         "password": config["password"],
         "driver": os.getenv("POSTGRES_JDBC_DRIVER", "org.postgresql.Driver"),
     }
-    df.write.jdbc(url=config["jdbc_url"], table=table, mode=mode, properties=properties)
+    df.write.jdbc(url=config["jdbc_url"], table=table, mode=write_mode, properties=properties)

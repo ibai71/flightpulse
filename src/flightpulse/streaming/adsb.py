@@ -6,31 +6,33 @@ import os
 from pathlib import Path
 
 from kafka import KafkaProducer
-from pyspark.sql import functions as F, types as T
 
 from flightpulse.config import data_dir, spark_session
 from flightpulse.processing.postgres import write_dataframe
 
 
-EVENT_SCHEMA = T.StructType([
-    T.StructField("flight_id", T.StringType()),
-    T.StructField("icao24", T.StringType()),
-    T.StructField("callsign", T.StringType()),
-    T.StructField("icao_type", T.StringType()),
-    T.StructField("operator_name", T.StringType()),
-    T.StructField("start_airport_ident", T.StringType()),
-    T.StructField("end_airport_ident", T.StringType()),
-    T.StructField("event_ts", T.TimestampType()),
-    T.StructField("event_epoch", T.LongType()),
-    T.StructField("longitude", T.DoubleType()),
-    T.StructField("latitude", T.DoubleType()),
-    T.StructField("altitude_ft", T.DoubleType()),
-    T.StructField("track_deg", T.DoubleType()),
-    T.StructField("ground_speed_knots", T.DoubleType()),
-    T.StructField("vertical_rate_fpm", T.DoubleType()),
-    T.StructField("indicated_airspeed_knots", T.DoubleType()),
-    T.StructField("height_agl_ft", T.DoubleType()),
-])
+def _event_schema():
+    from pyspark.sql import types as T
+
+    return T.StructType([
+        T.StructField("flight_id", T.StringType()),
+        T.StructField("icao24", T.StringType()),
+        T.StructField("callsign", T.StringType()),
+        T.StructField("icao_type", T.StringType()),
+        T.StructField("operator_name", T.StringType()),
+        T.StructField("start_airport_ident", T.StringType()),
+        T.StructField("end_airport_ident", T.StringType()),
+        T.StructField("event_ts", T.TimestampType()),
+        T.StructField("event_epoch", T.LongType()),
+        T.StructField("longitude", T.DoubleType()),
+        T.StructField("latitude", T.DoubleType()),
+        T.StructField("altitude_ft", T.DoubleType()),
+        T.StructField("track_deg", T.DoubleType()),
+        T.StructField("ground_speed_knots", T.DoubleType()),
+        T.StructField("vertical_rate_fpm", T.DoubleType()),
+        T.StructField("indicated_airspeed_knots", T.DoubleType()),
+        T.StructField("height_agl_ft", T.DoubleType()),
+    ])
 
 
 def _latest_event_file(root: Path) -> Path:
@@ -68,6 +70,8 @@ def produce_adsb(root: Path | None = None) -> int:
 
 
 def stream_adsb(root: Path | None = None) -> None:
+    from pyspark.sql import functions as F
+
     root = root or data_dir()
     bootstrap = os.getenv("KAFKA_BOOTSTRAP_SERVERS", "localhost:9092")
     topic = os.getenv("KAFKA_TOPIC", "adsb-observations")
@@ -84,7 +88,7 @@ def stream_adsb(root: Path | None = None) -> None:
             .option("startingOffsets", "earliest")
             .load()
         )
-        parsed = source.select(F.from_json(F.col("value").cast("string"), EVENT_SCHEMA).alias("event")) \
+        parsed = source.select(F.from_json(F.col("value").cast("string"), _event_schema()).alias("event")) \
             .select("event.*")
         valid_expr = F.coalesce((
             F.col("flight_id").isNotNull()

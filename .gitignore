@@ -9,6 +9,7 @@ dist/
 *.egg-info/
 target/
 dbt_packages/
+dbt/.user.yml
 logs/
 data/**
 !data/.gitkeep

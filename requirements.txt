@@ -1,0 +1,3 @@
+# Dependencies and development tools are declared in pyproject.toml.
+# This installs FlightPulse in editable mode together with its test extras.
+-e .[dev]

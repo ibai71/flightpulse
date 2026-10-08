@@ -1,5 +1,9 @@
 import pytest
+import sys
 from pathlib import Path
+
+if sys.platform == "win32":
+    pytest.skip("PySpark batch tests run in the project's Linux/WSL2 environment", allow_module_level=True)
 
 pyspark = pytest.importorskip("pyspark")
 
@@ -43,7 +47,11 @@ def test_transform_quarantines_invalid_airport_codes(spark):
         "ArrDelayMinutes", "ArrDel15", "Cancelled", "Diverted", "Distance", "AirTime", "CarrierDelay",
         "WeatherDelay", "NASDelay", "SecurityDelay", "LateAircraftDelay",
     ]
-    clean, rejected, report = quality_partition(normalize_bts(spark.createDataFrame([row], columns)))
+    schema = pyspark.sql.types.StructType([
+        pyspark.sql.types.StructField(name, pyspark.sql.types.StringType(), nullable=True)
+        for name in columns
+    ])
+    clean, rejected, report = quality_partition(normalize_bts(spark.createDataFrame([row], schema)))
     assert clean.count() == 0
     assert rejected.count() == 1
     assert report["invalid_airports"] == 1

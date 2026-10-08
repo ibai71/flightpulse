@@ -22,7 +22,7 @@ ADS-B is intentionally not entity-matched to BTS. The streaming checkpoint persi
 
 ## Local services
 
-Docker Compose starts a single-node Kafka 4.1 KRaft broker and PostgreSQL 17. PySpark runs with `local[*]` in WSL2. The first Spark jobs that need JDBC/Kafka may download the connector JARs from Maven Central.
+Docker Compose starts a single-node Kafka 4.1 KRaft broker and PostgreSQL 17. The Windows PowerShell runner launches FlightPulse in a Python 3.12 container with Java 17, where PySpark runs with `local[*]`. The first Spark jobs that need JDBC/Kafka may download the connector JARs from Maven Central. Direct local execution in WSL2 is also supported.
 
 ## Repository paths
 
