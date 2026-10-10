@@ -1,6 +1,6 @@
 with delay_rows as (
     select flight_date, airline_id, airline_code, origin_airport_code, destination_airport_code,
-           'carrier'::text as delay_cause, carrier_delay_minutes as delay_minutes from {{ ref('fact_flights') }}
+           'carrier' as delay_cause, carrier_delay_minutes as delay_minutes from {{ ref('fact_flights') }}
     union all
     select flight_date, airline_id, airline_code, origin_airport_code, destination_airport_code,
            'weather', weather_delay_minutes from {{ ref('fact_flights') }}
@@ -21,7 +21,7 @@ select
     origin_airport_code,
     destination_airport_code,
     delay_cause,
-    count(*) filter (where delay_minutes is not null)::bigint as flights_with_cause,
+    sum(case when delay_minutes is not null then 1 else 0 end) as flights_with_cause,
     sum(delay_minutes) as total_delay_minutes,
     avg(delay_minutes) as average_delay_minutes
 from delay_rows

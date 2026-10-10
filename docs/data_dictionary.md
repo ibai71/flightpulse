@@ -1,6 +1,8 @@
 # Data dictionary
 
-## PostgreSQL `analytics`
+## Analytics models
+
+The dbt project builds these models in PostgreSQL `analytics` for the local demo and in Snowflake `ANALYTICS` when the optional Snowflake target is configured.
 
 | Relation | Grain | Main fields |
 | --- | --- | --- |

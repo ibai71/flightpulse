@@ -1,71 +1,25 @@
-# Power BI dashboard build guide
+# Interactive dashboard
 
-The Power BI file is created and saved locally in Power BI Desktop; `.pbix` files are ignored by Git. Start Compose, run both pipelines, then connect through **Get data → PostgreSQL database**:
+The dashboard turns the FlightPulse analytics snapshot into a set of operational views. It combines BTS monthly flight-performance aggregates with a separate, bounded ADS-B trajectory sample. The displayed airport and airline labels use readable names; search also accepts airport and carrier codes.
 
-- Server: `localhost:5432`
-- Database: value of `POSTGRES_DB` in `.env` (default `flightpulse`)
-- Schema: `analytics`
-- Authentication: PostgreSQL credentials from `.env`
+## Views
 
-Load `fact_flights`, the dimensions, the daily aggregates, and `fact_adsb_observations`. Use the following report pages and measures.
+| View | What it answers |
+| --- | --- |
+| **Overview** | How many flights were scheduled? What share arrived on time? How did average arrival delay, cancellations, and diversions change over the selected period? |
+| **Airports** | How do arrival and departure performance compare by airport? Search by city or code and see every matching airport, not only the busiest ones. |
+| **Airlines** | How do reporting carriers compare on punctuality, delay, cancellations, and diversions? Search by airline name or code. |
+| **Delay causes** | Which reported BTS categories account for delay minutes, and how do they change over time? |
+| **ADS-B** | Where did a selected aircraft observation track travel, and how did altitude and ground speed change over time? |
 
-Create one-to-many, single-direction relationships from `dim_date[date_key]` to the date field on `fact_flights`, `airport_daily_performance`, `airline_daily_performance`, and `delay_causes`; from `dim_airline[airline_id]` to the airline ID on the flight fact and airline/delay aggregates; and from `dim_airport[airport_id]` to `airport_daily_performance[airport_id]`. If you need separate origin and destination slicers on `fact_flights`, duplicate `dim_airport` in Power Query and use one copy for each airport role.
+## Interpreting the metrics
 
-## Overview
+- Arrival punctuality counts flights with an arrival delay below 15 minutes, after excluding cancelled and diverted flights and flights with an unknown arrival delay. Early arrivals count as on time.
+- Cancellation and diversion rates use all scheduled flight records as their denominator.
+- Negative delays represent early departures or arrivals. Missing delay and cause values remain unknown rather than being treated as zero.
+- Delay cause categories are independently reported and are not expected to sum to total delay.
+- ADS-B observations describe the selected historical sample and are not linked to BTS flight records.
 
-Cards: scheduled flights, arrival on-time percentage, average arrival delay, cancellation rate, and diversion rate. Use `airline_daily_performance` or `fact_flights` for date/airline slicers. Keep cancellations and diversions in the denominator for their corresponding rates; exclude them and records with unknown arrival delay from the on-time denominator.
+## Snapshot contents
 
-Suggested DAX measures:
-
-```DAX
-Scheduled Flights = COUNTROWS(fact_flights)
-
-Eligible Arrivals =
-CALCULATE(
-    COUNTROWS(fact_flights),
-    fact_flights[cancelled] = FALSE(),
-    fact_flights[diverted] = FALSE(),
-    NOT ISBLANK(fact_flights[arrival_delay_minutes])
-)
-
-On-Time Arrival % =
-DIVIDE(
-    CALCULATE(
-        COUNTROWS(fact_flights),
-        fact_flights[cancelled] = FALSE(),
-        fact_flights[diverted] = FALSE(),
-        NOT ISBLANK(fact_flights[arrival_delay_minutes]),
-        fact_flights[arrival_delay_minutes] < 15
-    ),
-    [Eligible Arrivals]
-)
-
-Average Arrival Delay =
-CALCULATE(
-    AVERAGE(fact_flights[arrival_delay_minutes]),
-    fact_flights[cancelled] = FALSE(),
-    fact_flights[diverted] = FALSE()
-)
-
-Cancellation % =
-DIVIDE(CALCULATE(COUNTROWS(fact_flights), fact_flights[cancelled] = TRUE()), [Scheduled Flights])
-
-Diversion % =
-DIVIDE(CALCULATE(COUNTROWS(fact_flights), fact_flights[diverted] = TRUE()), [Scheduled Flights])
-```
-
-## Airport Performance
-
-Use `airport_daily_performance` as a matrix with airport code, `airport_role`, scheduled flights, average delay, on-time rate, cancellation rate, and diversion rate. Add date and role slicers. There are no airport coordinates in the selected source columns, so use a ranked table rather than a map.
-
-## Airline Performance
-
-Use `airline_daily_performance` for airline ranking by flights, average arrival delay, on-time rate, cancellation rate, and diversion rate. Add a date trend and a table of carriers with the lowest on-time percentage.
-
-## Delay Analysis
-
-Use `delay_causes` for stacked bars by cause and airline, a date trend of total delay minutes, and a route detail table. Null cause values are not converted to zero; these records are excluded from cause totals.
-
-## ADS-B Trajectories
-
-Use `fact_adsb_observations` with flight ID and event timestamp as filters. Plot longitude/latitude on a map, altitude and ground speed over event time, and provide callsign, aircraft type, and endpoint fields as slicers. This page describes the bounded ADS-B sample and has no BTS flight matching.
+[`data/snapshot/`](data/snapshot/) contains daily airport and airline metrics, compact delay-cause summaries, route performance, ADS-B observation points, and display-name lookups. The BTS dashboard data is aggregated; individual BTS flight records and database credentials are not included. The snapshot covers BTS flights from May through July 2026 and an ADS-B sample around JFK from 7 October 2026.

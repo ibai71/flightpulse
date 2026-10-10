@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import argparse
+from getpass import getpass
 import os
 import subprocess
 import sys
@@ -32,6 +33,8 @@ def build_parser() -> argparse.ArgumentParser:
     commands.add_parser("load-adsb", help="Load ADS-B Silver Parquet into PostgreSQL staging")
     commands.add_parser("dbt-run", help="Build Gold models using dbt")
     commands.add_parser("dbt-test", help="Run dbt data tests")
+    commands.add_parser("dbt-snowflake-run", help="Build analytics models in Snowflake")
+    commands.add_parser("dbt-snowflake-test", help="Run dbt data tests in Snowflake")
     return parser
 
 
@@ -68,13 +71,25 @@ def main(argv: list[str] | None = None) -> int:
         from flightpulse.streaming.adsb import load_adsb
 
         load_adsb()
-    elif args.command in ("dbt-run", "dbt-test"):
-        from flightpulse.processing.postgres import ensure_source_tables
+    elif args.command in ("dbt-run", "dbt-test", "dbt-snowflake-run", "dbt-snowflake-test"):
+        snowflake = args.command.startswith("dbt-snowflake-")
+        if not snowflake:
+            from flightpulse.processing.postgres import ensure_source_tables
 
-        ensure_source_tables()
-        action = "run" if args.command == "dbt-run" else "test"
+            ensure_source_tables()
+        action = "test" if args.command.endswith("test") else "run"
+        command = [
+            sys.executable, "-m", "dbt.cli.main", action,
+            "--project-dir", str(PROJECT_ROOT / "dbt"),
+            "--profiles-dir", str(PROJECT_ROOT / "dbt"),
+        ]
+        if snowflake:
+            command.extend(["--target", "snowflake"])
+            os.environ["DBT_SOURCE_SCHEMA"] = "LANDING"
+            if not os.getenv("SNOWFLAKE_PASSWORD"):
+                os.environ["SNOWFLAKE_PASSWORD"] = getpass("Snowflake password (input hidden; not saved): ")
         process = subprocess.run(
-            [sys.executable, "-m", "dbt.cli.main", action, "--project-dir", str(PROJECT_ROOT / "dbt"), "--profiles-dir", str(PROJECT_ROOT / "dbt")],
+            command,
             cwd=PROJECT_ROOT,
             check=False,
         )

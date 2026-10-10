@@ -2,7 +2,7 @@ version: 2
 
 sources:
   - name: ingestion
-    schema: staging
+    schema: "{{ env_var('DBT_SOURCE_SCHEMA', 'staging') }}"
     tables:
       - name: bts_flights
         description: Typed flight-level records loaded by the PySpark batch pipeline.

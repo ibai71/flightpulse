@@ -4,12 +4,12 @@ select
     destination_airport_id,
     destination_airport_code,
     count(*) as scheduled_flights,
-    avg(arrival_delay_minutes) filter (where cancelled is false and diverted is false) as average_arrival_delay_minutes,
-    count(*) filter (where cancelled is false and diverted is false and arrival_delay_minutes is not null)::bigint as eligible_arrivals,
-    count(*) filter (where cancelled is false and diverted is false and arrival_delay_minutes < 15)::bigint as on_time_arrivals,
-    count(*) filter (where cancelled is true)::double precision / nullif(count(*), 0) as cancellation_rate,
-    count(*) filter (where diverted is true)::double precision / nullif(count(*), 0) as diversion_rate,
-    count(*) filter (where cancelled is false and diverted is false and arrival_delay_minutes < 15)::double precision
-        / nullif(count(*) filter (where cancelled is false and diverted is false and arrival_delay_minutes is not null), 0) as on_time_rate
+    avg(case when not cancelled and not diverted then arrival_delay_minutes end) as average_arrival_delay_minutes,
+    sum(case when not cancelled and not diverted and arrival_delay_minutes is not null then 1 else 0 end) as eligible_arrivals,
+    sum(case when not cancelled and not diverted and arrival_delay_minutes < 15 then 1 else 0 end) as on_time_arrivals,
+    cast(sum(case when cancelled then 1 else 0 end) as double precision) / nullif(count(*), 0) as cancellation_rate,
+    cast(sum(case when diverted then 1 else 0 end) as double precision) / nullif(count(*), 0) as diversion_rate,
+    cast(sum(case when not cancelled and not diverted and arrival_delay_minutes < 15 then 1 else 0 end) as double precision)
+        / nullif(sum(case when not cancelled and not diverted and arrival_delay_minutes is not null then 1 else 0 end), 0) as on_time_rate
 from {{ ref('fact_flights') }}
 group by 1, 2, 3, 4

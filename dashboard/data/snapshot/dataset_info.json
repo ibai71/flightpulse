@@ -1,0 +1,17 @@
+{
+  "data_type": "public_source_snapshot",
+  "flight_date_start": "2026-05-01",
+  "flight_date_end": "2026-07-31",
+  "flight_rows": 1851282,
+  "adsb_observations": 2114,
+  "airports": 354,
+  "airlines": 13,
+  "adsb_date_utc": "2026-10-07",
+  "adsb_airport_requested": "KJFK",
+  "adsb_flights_downloaded": 40,
+  "sources": [
+    "BTS TranStats On-Time Performance",
+    "ADSB.aero historical trajectories"
+  ],
+  "adsb_note": "Bounded public trajectory sample. Kept separate from BTS; no flight matching is performed."
+}

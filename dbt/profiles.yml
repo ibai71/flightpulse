@@ -1,5 +1,5 @@
 flightpulse:
-  target: local
+  target: "{{ env_var('DBT_TARGET', 'local') }}"
   outputs:
     local:
       type: postgres
@@ -11,3 +11,15 @@ flightpulse:
       schema: analytics
       threads: 4
       connect_timeout: 10
+    snowflake:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT', 'example-org-example-account') }}"
+      user: "{{ env_var('SNOWFLAKE_USER', 'example-user') }}"
+      authenticator: "{{ env_var('SNOWFLAKE_AUTHENTICATOR', 'username_password_mfa') }}"
+      password: "{{ env_var('SNOWFLAKE_PASSWORD', '') }}"
+      role: "{{ env_var('SNOWFLAKE_ROLE', 'FLIGHTPULSE_ROLE') }}"
+      warehouse: "{{ env_var('SNOWFLAKE_WAREHOUSE', 'FLIGHTPULSE_WH') }}"
+      database: "{{ env_var('SNOWFLAKE_DATABASE', 'FLIGHTPULSE') }}"
+      schema: "{{ env_var('SNOWFLAKE_SCHEMA', 'ANALYTICS') }}"
+      threads: 4
+      client_session_keep_alive: false

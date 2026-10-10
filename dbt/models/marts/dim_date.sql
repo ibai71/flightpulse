@@ -1,9 +1,9 @@
 select distinct
     flight_date as date_key,
-    extract(year from flight_date)::integer as year,
-    extract(quarter from flight_date)::integer as quarter,
-    extract(month from flight_date)::integer as month,
-    to_char(flight_date, 'Month') as month_name,
-    extract(isodow from flight_date)::integer as day_of_week,
-    to_char(flight_date, 'Day') as day_name
+    cast(extract(year from flight_date) as integer) as year,
+    cast(extract(quarter from flight_date) as integer) as quarter,
+    cast(extract(month from flight_date) as integer) as month,
+    {{ month_label('flight_date') }} as month_name,
+    cast({{ iso_day_of_week('flight_date') }} as integer) as day_of_week,
+    {{ weekday_label('flight_date') }} as day_name
 from {{ ref('stg_bts_flights') }}

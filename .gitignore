@@ -15,5 +15,6 @@ data/**
 !data/.gitkeep
 !data/sample/
 !data/sample/**
+dashboard/data/export/
 *.pbix
 .DS_Store
