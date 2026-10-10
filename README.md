@@ -1,6 +1,7 @@
 # FlightPulse | Aviation Data Engineering
 
 **An end-to-end data platform for exploring US flight performance and aircraft trajectories.**
+Demo: https://flightpulse-jvqs3gi87gnh4pbu2f2vtj.streamlit.app/
 
 [![Python](https://img.shields.io/badge/Python-3.12-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![Apache Spark](https://img.shields.io/badge/Apache%20Spark-4.1-E25A1C?logo=apachespark&logoColor=white)](https://spark.apache.org/)
