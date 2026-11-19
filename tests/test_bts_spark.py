@@ -22,18 +22,21 @@ def spark():
     session.stop()
 
 
-def test_transform_deduplicates_and_keeps_early_arrivals(spark):
+def test_transform_deduplicates_and_parses_decimal_delay_labels(spark):
     path = Path(__file__).parent / "fixtures" / "bts_sample.csv"
     raw = spark.read.option("header", True).option("inferSchema", False).csv(str(path))
     typed = normalize_bts(raw)
     clean, rejected, report = quality_partition(typed)
     result = clean.collect()
     assert len(result) == 2
-    assert any(row.arrival_delay_minutes == -10 for row in result)
+    assert any(row.arrival_delay_minutes == 0 and row.arrival_delayed_15 == 0 for row in result)
+    assert any(row.arrival_delay_minutes == 25 and row.arrival_delayed_15 == 1 for row in result)
     assert all(row.flight_date.isoformat() == "2026-05-01" for row in result)
     assert rejected.count() == 1
     assert report["duplicates_removed"] == 1
     assert report["invalid_airports"] == 1
+    assert report["missing_eligible_arrival_labels"] == 0
+    assert report["inconsistent_arrival_labels"] == 0
 
 
 def test_transform_quarantines_invalid_airport_codes(spark):

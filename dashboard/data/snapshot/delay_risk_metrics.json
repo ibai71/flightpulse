@@ -1,0 +1,94 @@
+{
+  "model": "regularized_logistic_regression_sgd",
+  "prediction_point": "after departure, when departure delay is observed",
+  "target": "BTS ArrDel15: arrival delay of at least 15 minutes",
+  "label_source": "ArrDelayMinutes threshold (legacy Silver compatibility)",
+  "features": [
+    "airline_code",
+    "origin_code",
+    "destination_code",
+    "flight_day_of_week",
+    "departure_delay_minutes",
+    "distance_miles",
+    "scheduled_hour_sin",
+    "scheduled_hour_cos"
+  ],
+  "excluded_features": [
+    "arrival_delay_minutes",
+    "arrival_delayed_15",
+    "air_time_minutes",
+    "delay_cause_minutes",
+    "ADS-B observations"
+  ],
+  "split": {
+    "train_months": [
+      "2026-05"
+    ],
+    "calibration_month": "2026-06",
+    "test_month": "2026-07",
+    "train_rows": 604346,
+    "calibration_rows": 595195,
+    "test_rows": 612038
+  },
+  "test_positive_rate": 0.2834154088471631,
+  "calibration_bands": [
+    {
+      "risk_band": "0\u201319%",
+      "flights": 419025,
+      "estimated_probability": 0.05451335448389694,
+      "observed_late_rate": 0.05906091521985562
+    },
+    {
+      "risk_band": "20\u201339%",
+      "flights": 35368,
+      "estimated_probability": 0.2812040171609236,
+      "observed_late_rate": 0.2820346075548518
+    },
+    {
+      "risk_band": "40\u201359%",
+      "flights": 18009,
+      "estimated_probability": 0.484034987864935,
+      "observed_late_rate": 0.4717085901493698
+    },
+    {
+      "risk_band": "60\u201379%",
+      "flights": 19594,
+      "estimated_probability": 0.70010036525711,
+      "observed_late_rate": 0.6850566499948963
+    },
+    {
+      "risk_band": "80\u2013100%",
+      "flights": 120042,
+      "estimated_probability": 0.9767812410153014,
+      "observed_late_rate": 0.9731593942120258
+    }
+  ],
+  "training_prevalence_baseline": {
+    "probability": 0.2142994245018582,
+    "average_precision": 0.2834154088471631,
+    "brier_score": 0.2078681341671789
+  },
+  "departure_delay_rule_baseline": {
+    "rule": "departure_delay_minutes >= 15",
+    "accuracy": 0.8985389796058415,
+    "precision": 0.8108423444294958,
+    "recall": 0.8373467234709819,
+    "f1": 0.8238814266914735
+  },
+  "model_metrics": {
+    "average_precision": 0.9114759877875186,
+    "roc_auc": 0.935772334204554,
+    "brier_score": 0.0673025210087875,
+    "precision_at_50_percent": 0.9141278589331202,
+    "recall_at_50_percent": 0.7716604885247981,
+    "f1_at_50_percent": 0.8368741559545841
+  },
+  "validation": {
+    "status": "validated",
+    "criteria": {
+      "average_precision_above_test_prevalence": true,
+      "brier_below_training_prevalence_baseline": true
+    }
+  },
+  "generated_at_utc": "2026-11-19T14:55:12.488817+00:00"
+}

@@ -6,7 +6,7 @@ END_MONTH ?= 2026-07
 AIRPORT ?= KJFK
 ADS_B_DATE ?=
 
-.PHONY: help up down bts-ingest bts-build bts-pipeline adsb-fetch adsb-produce adsb-stream adsb-load adsb-demo dbt-run dbt-snowflake-run dbt-snowflake-test snowflake-setup snowflake-load snowflake-pipeline quality test dashboard dashboard-demo dashboard-export
+.PHONY: help up down bts-ingest bts-build bts-pipeline ml-train adsb-fetch adsb-produce adsb-stream adsb-load adsb-demo dbt-run dbt-snowflake-run dbt-snowflake-test snowflake-setup snowflake-load snowflake-pipeline quality test dashboard dashboard-demo dashboard-export
 
 help:
 	@echo "FlightPulse commands:"
@@ -14,6 +14,7 @@ help:
 	@echo "  make bts-ingest START_MONTH=YYYY-MM END_MONTH=YYYY-MM"
 	@echo "  make bts-build                           Transform BTS and load PostgreSQL staging"
 	@echo "  make bts-pipeline                        Ingest and build BTS"
+	@echo "  make ml-train                            Train and export the historical delay-risk model (install .[ml])"
 	@echo "  make adsb-fetch AIRPORT=KJFK ADS_B_DATE=YYYY-MM-DD"
 	@echo "  make adsb-demo                           Produce, stream, load, and model ADS-B"
 	@echo "  make quality                             Run pytest and dbt tests"
@@ -39,6 +40,9 @@ bts-build:
 	python -m flightpulse.cli build-bts --start-month $(START_MONTH) --end-month $(END_MONTH)
 
 bts-pipeline: up bts-ingest bts-build dbt-run
+
+ml-train:
+	python -m flightpulse.cli train-delay-risk
 
 adsb-fetch:
 	python -m flightpulse.cli fetch-adsb --airport $(AIRPORT) $(if $(ADS_B_DATE),--date $(ADS_B_DATE),)

@@ -5,6 +5,7 @@ import argparse
 import csv
 import json
 import os
+import shutil
 import zipfile
 from pathlib import Path
 
@@ -141,6 +142,13 @@ def main() -> None:
         "adsb_note": "Bounded public trajectory sample. Kept separate from BTS; no flight matching is performed.",
     }
     (args.output / "dataset_info.json").write_text(json.dumps(metadata, indent=2), encoding="utf-8")
+    bundled_snapshot = ROOT / "dashboard" / "data" / "snapshot"
+    for filename in ("delay_risk_metrics.json", "delay_risk_holdout.csv"):
+        source = bundled_snapshot / filename
+        destination = args.output / filename
+        if source.exists() and source.resolve() != destination.resolve():
+            shutil.copy2(source, destination)
+            print(f"Copied historical ML evaluation -> {destination}")
     print(f"Snapshot metadata: {metadata}")
 
 

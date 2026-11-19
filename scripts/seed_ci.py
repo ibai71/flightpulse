@@ -30,7 +30,7 @@ with psycopg.connect(
         cursor.execute("""
             INSERT INTO staging.bts_flights VALUES
             ('ci-flight-1', '2026-05-01', 19805, 'AA', '100', 12478, 'JFK', 12892, 'LAX', 800,
-             -5, -10, 0, false, false, 2475, 330, null, null, null, null, null),
+             0, 0, 0, false, false, 2475, 330, null, null, null, null, null),
             ('ci-flight-2', '2026-05-01', 19805, 'AA', '101', 12892, 'LAX', 12478, 'JFK', 900,
              20, 25, 1, false, false, 2475, 340, 10, 0, 15, 0, 0)
         """)

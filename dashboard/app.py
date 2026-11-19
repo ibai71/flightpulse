@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 from pathlib import Path
 
 import pandas as pd
@@ -49,6 +50,9 @@ airline_labels_frame = read_csv("airline_labels")
 aircraft_labels_frame = read_csv("aircraft_labels")
 dataset_info_path = DATA_DIR / "dataset_info.json"
 dataset_info = pd.read_json(dataset_info_path, typ="series") if dataset_info_path.exists() else pd.Series(dtype=object)
+delay_metrics_path = DATA_DIR / "delay_risk_metrics.json"
+delay_risk_metrics = json.loads(delay_metrics_path.read_text(encoding="utf-8")) if delay_metrics_path.exists() else {}
+delay_risk_examples = read_csv("delay_risk_holdout")
 airport_name_lookup = dict(zip(airport_labels_frame.get("airport_code", []), airport_labels_frame.get("airport_name", [])))
 airline_name_lookup = dict(zip(airline_labels_frame.get("airline_code", []), airline_labels_frame.get("airline_name", [])))
 aircraft_name_lookup = dict(zip(aircraft_labels_frame.get("icao_type", []), aircraft_labels_frame.get("aircraft_name", [])))
@@ -69,7 +73,7 @@ min_date = min(airport.flight_date.min(), airline.flight_date.min()).date()
 max_date = max(airport.flight_date.max(), airline.flight_date.max()).date()
 with st.sidebar:
     st.markdown("## FlightPulse")
-    page = st.radio("Explore", ["Overview", "Airports", "Airlines", "Delay causes", "ADS-B"], label_visibility="collapsed")
+    page = st.radio("Explore", ["Overview", "Airports", "Airlines", "Delay causes", "Delay risk", "ADS-B"], label_visibility="collapsed")
     st.divider()
     selected_range = st.date_input("Flight date range", (min_date, max_date), min_value=min_date, max_value=max_date)
     st.caption("Source: BTS on-time performance and a separate ADS-B.aero trajectory sample.")
@@ -221,6 +225,128 @@ elif page == "Delay causes":
             route_table = route_table[["Origin", "Destination", "scheduled_flights", "average_arrival_delay_minutes", "on_time_rate"]].rename(columns={"scheduled_flights": "Scheduled flights", "average_arrival_delay_minutes": "Average arrival delay (min)", "on_time_rate": "On-time arrivals"})
             st.dataframe(route_table.sort_values("Average arrival delay (min)", ascending=False).head(15).style.format({"Average arrival delay (min)": "{:.1f}", "On-time arrivals": "{:.1%}"}), width="stretch", hide_index=True)
     st.caption("Cause-specific fields are independently reported by BTS; null causes are not treated as zero and cause totals may not equal total flight delay.")
+
+elif page == "Delay risk":
+    st.subheader("Arrival delay risk at departure")
+    st.markdown(
+        "For a flight that has departed, FlightPulse estimates the chance that it will arrive "
+        "at least 15 minutes late. The estimate uses the observed departure delay and scheduled-flight details."
+    )
+    if not delay_risk_metrics or delay_risk_examples.empty:
+        st.info(
+            "The historical model snapshot is not available in this dashboard data folder. "
+            "Build BTS Silver, install the optional ML dependencies, then run `make ml-train`."
+        )
+    else:
+        split = delay_risk_metrics.get("split", {})
+        model_metrics = delay_risk_metrics.get("model_metrics", {})
+        baseline = delay_risk_metrics.get("training_prevalence_baseline", {})
+        rule_baseline = delay_risk_metrics.get("departure_delay_rule_baseline", {})
+        validation = delay_risk_metrics.get("validation", {})
+        test_month = split.get("test_month", "the reserved test month")
+        if validation.get("status") == "validated":
+            st.success(f"Validated on flights from {test_month}, which were held out from training and calibration.")
+        else:
+            st.warning(
+                f"Experimental result on {test_month}: this model did not beat both probability baselines. "
+                "Treat its scores as a prototype, not a validated prediction."
+            )
+        st.caption(
+            f"Historical test only · {split.get('test_rows', 0):,} flights · "
+            f"fixed {test_month} holdout · observed late-arrival rate "
+            f"{pct(delay_risk_metrics.get('test_positive_rate', float('nan')))}"
+        )
+        metric_cols = st.columns(4)
+        metric_cols[0].metric("Test flights", f"{split.get('test_rows', 0):,}")
+        metric_cols[1].metric(
+            "Average precision",
+            f"{model_metrics.get('average_precision', float('nan')):.1%}",
+            help="How well the model ranks flights that arrive at least 15 minutes late. Higher is better.",
+        )
+        metric_cols[2].metric(
+            "Probability error (Brier)",
+            f"{model_metrics.get('brier_score', float('nan')):.3f}",
+            delta=f"vs {baseline.get('brier_score', float('nan')):.3f} baseline",
+            delta_color="inverse",
+            help="Measures the accuracy of the estimated probabilities. Lower is better.",
+        )
+        metric_cols[3].metric(
+            "Simple rule F1",
+            f"{rule_baseline.get('f1', float('nan')):.1%}",
+            help="Reference rule: mark a flight late if it left at least 15 minutes late. F1 balances precision and recall.",
+        )
+
+        st.markdown("#### Do estimated risks match what happened?")
+        calibration_summary = pd.DataFrame(delay_risk_metrics.get("calibration_bands", []))
+        if not calibration_summary.empty:
+            chart_data = calibration_summary.melt(
+                id_vars=["risk_band", "flights"],
+                value_vars=["estimated_probability", "observed_late_rate"],
+                var_name="measure",
+                value_name="rate",
+            )
+            chart_data["measure"] = chart_data.measure.map({
+                "estimated_probability": "Estimated",
+                "observed_late_rate": "Actually arrived late",
+            })
+            st.plotly_chart(
+                px.bar(
+                    chart_data,
+                    x="risk_band",
+                    y="rate",
+                    color="measure",
+                    barmode="group",
+                    hover_data=["flights"],
+                    labels={"risk_band": "Estimated risk band", "rate": "Share of flights", "measure": ""},
+                    title="Estimated likelihood compared with the test outcomes",
+                ).update_yaxes(tickformat=".0%", range=[0, 1]),
+                width="stretch",
+            )
+
+        examples = delay_risk_examples.copy()
+        examples["flight_date"] = pd.to_datetime(examples.flight_date, errors="coerce")
+        def example_label(row: pd.Series) -> str:
+            scheduled = row.get("scheduled_departure_hhmm")
+            time_label = f"{int(scheduled) // 100:02d}:{int(scheduled) % 100:02d}" if pd.notna(scheduled) else "time unknown"
+            return (
+                f"{row.get('flight_date').date()} · {row.get('airline_code')} · "
+                f"{row.get('origin_code')} → {row.get('destination_code')} · {time_label}"
+            )
+
+        selected_index = st.selectbox(
+            "Explore one held-out flight",
+            examples.index.tolist(),
+            format_func=lambda index: example_label(examples.loc[index]),
+        )
+        selected = examples.loc[selected_index]
+        prediction_col, outcome_col, context_col = st.columns(3)
+        prediction_col.metric("Estimated chance of arriving 15+ min late", pct(selected.predicted_probability))
+        actual_late = int(selected.arrival_delayed_15) == 1
+        outcome_col.metric(
+            "What happened",
+            "Arrived 15+ min late" if actual_late else "Arrived under 15 min late",
+            delta=f"{selected.arrival_delay_minutes:.0f} min recorded delay",
+            delta_color="inverse" if actual_late else "off",
+        )
+        context_col.metric("Departure delay known to the model", f"{selected.departure_delay_minutes:.0f} min")
+        st.caption(
+            "This is a historical backtest. The selected flight was not used to fit the model; "
+            "the model did not see its arrival delay or final outcome. Cancelled and diverted flights are excluded."
+        )
+        with st.expander("How the model was evaluated"):
+            st.write(
+                f"Train months: {', '.join(split.get('train_months', [])) or 'not recorded'} · "
+                f"Calibration month: {split.get('calibration_month', 'not recorded')} · "
+                f"Test month: {test_month}."
+            )
+            st.write(
+                f"The probability model's average precision was {model_metrics.get('average_precision', float('nan')):.3f}; "
+                f"the Brier score was {model_metrics.get('brier_score', float('nan')):.4f}. "
+                f"A constant training-rate forecast had Brier {baseline.get('brier_score', float('nan')):.4f}. "
+                f"The simple 15-minute departure-delay rule had {rule_baseline.get('precision', float('nan')):.1%} precision "
+                f"and {rule_baseline.get('recall', float('nan')):.1%} recall."
+            )
+            st.caption("A lower Brier score is better. Average precision measures how well the model ranks late arrivals.")
 
 else:
     st.subheader("ADS-B trajectory explorer")

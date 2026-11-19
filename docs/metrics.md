@@ -3,7 +3,7 @@
 ## BTS flight measures
 
 - **Scheduled flights:** count of BTS flight records, including canceled and diverted records.
-- **On-time arrivals:** among flights that are not canceled or diverted and have a valid arrival-delay value, count delays below 15 minutes divided by eligible arrivals. A negative delay is early and on time.
+- **On-time arrivals:** among flights that are not canceled or diverted and have a valid arrival-delay value, count delays below 15 minutes divided by eligible arrivals. BTS `ArrDelayMinutes` is non-negative; early and on-time flights are represented as zero.
 - **Average arrival delay:** mean of the observed arrival-delay minutes for non-canceled, non-diverted flights. SQL aggregates ignore nulls.
 - **Cancellation rate:** canceled records divided by all scheduled records in the selected group.
 - **Diversion rate:** diverted records divided by all scheduled records in the selected group.
@@ -18,3 +18,5 @@ Each row in `fact_adsb_observations` represents a single timestamped trajectory 
 ## Interpretation
 
 These measures describe reported BTS operations and the bounded ADS-B sample. They do not imply that ADS-B flights have been matched to BTS records, and they do not predict future delay.
+
+The historical ML evaluation is a separate at-departure task. It estimates the probability of `ArrDel15 = 1` using observed departure delay and schedule-time fields. It excludes cancelled/diverted flights and keeps arrival outcomes and reported causes out of the model features. See [`ml.md`](ml.md) for the chronological split and baseline definitions.

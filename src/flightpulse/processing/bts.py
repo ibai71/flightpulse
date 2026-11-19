@@ -14,10 +14,11 @@ from flightpulse.processing.postgres import write_dataframe
 REQUIRED_COLUMNS = [
     "FlightDate", "DOT_ID_Reporting_Airline", "Flight_Number_Reporting_Airline",
     "OriginAirportID", "DestAirportID", "CRSDepTime", "Origin", "Dest",
+    "ArrDel15", "Cancelled", "Diverted",
 ]
 OPTIONAL_COLUMNS = [
-    "Reporting_Airline", "DepDelayMinutes", "ArrDelayMinutes", "ArrDel15", "Cancelled",
-    "Diverted", "Distance", "AirTime", "CarrierDelay", "WeatherDelay", "NASDelay",
+    "Reporting_Airline", "DepDelayMinutes", "ArrDelayMinutes", "Distance", "AirTime",
+    "CarrierDelay", "WeatherDelay", "NASDelay",
     "SecurityDelay", "LateAircraftDelay",
 ]
 
@@ -53,7 +54,7 @@ def normalize_bts(raw: DataFrame) -> DataFrame:
         _try_cast("CRSDepTime", "INT").alias("scheduled_departure_hhmm"),
         _try_cast("DepDelayMinutes", "DOUBLE").alias("departure_delay_minutes"),
         _try_cast("ArrDelayMinutes", "DOUBLE").alias("arrival_delay_minutes"),
-        _try_cast("ArrDel15", "INT").alias("arrival_delayed_15"),
+        F.expr("try_cast(try_cast(`ArrDel15` AS DOUBLE) AS INT)").alias("arrival_delayed_15"),
         _try_cast("Cancelled", "DOUBLE").alias("cancelled_raw"),
         _try_cast("Diverted", "DOUBLE").alias("diverted_raw"),
         _try_cast("Distance", "DOUBLE").alias("distance_miles"),
@@ -100,6 +101,25 @@ def quality_partition(frame: DataFrame) -> tuple[DataFrame, DataFrame, dict[str,
     invalid_keys = frame.filter(~key_valid).count()
     invalid_airports = frame.filter(key_valid & ~airport_valid).count()
     invalid_distance = frame.filter(key_valid & airport_valid & ~distance_valid).count()
+    missing_operational_flags = frame.filter(
+        F.col("cancelled").isNull() | F.col("diverted").isNull()
+    ).count()
+    eligible_arrival = (
+        F.col("cancelled").isNotNull()
+        & F.col("diverted").isNotNull()
+        & ~F.col("cancelled")
+        & ~F.col("diverted")
+        & F.col("arrival_delay_minutes").isNotNull()
+    )
+    missing_arrival_labels = frame.filter(eligible_arrival & F.col("arrival_delayed_15").isNull()).count()
+    invalid_arrival_labels = frame.filter(
+        eligible_arrival & ~F.col("arrival_delayed_15").isin(0, 1)
+    ).count()
+    inconsistent_arrival_labels = frame.filter(
+        eligible_arrival
+        & F.col("arrival_delayed_15").isNotNull()
+        & (F.col("arrival_delayed_15") != F.when(F.col("arrival_delay_minutes") >= 15, 1).otherwise(0))
+    ).count()
     rejected = frame.filter(~valid_expr)
     good = frame.filter(valid_expr)
     before_dedupe = good.count()
@@ -111,9 +131,19 @@ def quality_partition(frame: DataFrame) -> tuple[DataFrame, DataFrame, dict[str,
         "missing_or_invalid_critical_ids": invalid_keys,
         "invalid_airports": invalid_airports,
         "invalid_distance": invalid_distance,
+        "rows_missing_operational_flags": missing_operational_flags,
+        "missing_eligible_arrival_labels": missing_arrival_labels,
+        "invalid_eligible_arrival_labels": invalid_arrival_labels,
+        "inconsistent_arrival_labels": inconsistent_arrival_labels,
         "rows_quarantined": raw_count - before_dedupe,
         "rows_silver": before_dedupe - duplicate_count,
-        "status": "PASS" if invalid_keys == 0 and invalid_airports == 0 and invalid_distance == 0 else "PASS_WITH_QUARANTINE",
+        "status": (
+            "FAIL"
+            if missing_operational_flags or missing_arrival_labels or invalid_arrival_labels or inconsistent_arrival_labels
+            else "PASS"
+            if invalid_keys == 0 and invalid_airports == 0 and invalid_distance == 0
+            else "PASS_WITH_QUARANTINE"
+        ),
     }
     return deduped, rejected, report
 

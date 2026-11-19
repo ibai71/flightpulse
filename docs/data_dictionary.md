@@ -27,10 +27,12 @@ The dbt project builds these models in PostgreSQL `analytics` for the local demo
 | `OriginAirportID`, `Origin` | `origin_airport_id`, `origin_code` | Origin identifier and code |
 | `DestAirportID`, `Dest` | `destination_airport_id`, `destination_code` | Destination identifier and code |
 | `CRSDepTime` | `scheduled_departure_hhmm` | Scheduled local HHMM value; not converted to a timezone-aware timestamp |
-| `DepDelayMinutes`, `ArrDelayMinutes` | `departure_delay_minutes`, `arrival_delay_minutes` | Reported minutes; negative values are retained |
+| `DepDelayMinutes`, `ArrDelayMinutes` | `departure_delay_minutes`, `arrival_delay_minutes` | BTS delay-minute measures; early/on-time values are zero, and positive values are delay minutes |
 | `ArrDel15` | `arrival_delayed_15` | BTS 15-minute arrival-delay indicator |
 | `Cancelled`, `Diverted` | `cancelled`, `diverted` | Boolean operational flags |
 | `Distance`, `AirTime` | `distance_miles`, `air_time_minutes` | Reported distance and air time |
 | `CarrierDelay`, `WeatherDelay`, `NASDelay`, `SecurityDelay`, `LateAircraftDelay` | Corresponding `*_delay_minutes` fields | Cause-specific delay minutes; null means unreported/not applicable |
 
 The `staging` schema contains the latest loaded BTS rows and ADS-B observations. The `bronze`, `silver`, quarantine, quality reports, and checkpoints are local files under the ignored `data/` directory.
+
+For the ML at-departure estimate, the model uses the observed departure delay and scheduled-flight fields only. It does not use arrival delay, `ArrDel15`, actual air time, or delay causes as input features.

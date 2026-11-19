@@ -23,6 +23,10 @@ def build_parser() -> argparse.ArgumentParser:
     build.add_argument("--start-month", default="2026-05", help="First ingested month to process (YYYY-MM)")
     build.add_argument("--end-month", default="2026-07", help="Last ingested month to process (YYYY-MM)")
 
+    ml = commands.add_parser("train-delay-risk", help="Train and export the historical at-departure delay-risk model")
+    ml.add_argument("--output-dir", help="Directory for dashboard metrics and holdout examples")
+    ml.add_argument("--model-dir", help="Directory for the local trained model artifact")
+
     fetch = commands.add_parser("fetch-adsb", help="Fetch a bounded ADS-B airport sample")
     fetch.add_argument("--airport", default=os.getenv("ADS_B_AIRPORT", "KJFK"))
     fetch.add_argument("--date", default=os.getenv("ADS_B_DATE") or None, help="UTC date (YYYY-MM-DD)")
@@ -51,6 +55,16 @@ def main(argv: list[str] | None = None) -> int:
 
         report = build_bts(start_month=args.start_month, end_month=args.end_month)
         print(f"BTS quality: {report['status']} ({report['rows_silver']:,} rows in Silver)")
+        if report["status"] == "FAIL":
+            raise SystemExit("BTS target-label quality failed. Review data/quality/bts_quality_report.json.")
+    elif args.command == "train-delay-risk":
+        from pathlib import Path
+        from flightpulse.ml.delay_risk import train_delay_risk
+
+        train_delay_risk(
+            output_dir=Path(args.output_dir) if args.output_dir else None,
+            model_dir=Path(args.model_dir) if args.model_dir else None,
+        )
     elif args.command == "fetch-adsb":
         if not args.date:
             raise SystemExit("Choose an archive day with `make adsb-fetch AIRPORT=KJFK ADS_B_DATE=YYYY-MM-DD`.")
